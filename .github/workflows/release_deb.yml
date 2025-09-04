@@ -52,7 +52,6 @@ jobs:
       - name: Build .deb Package
         run: |
           dpkg-deb --build main_${{ env.VERSION }}_${{ matrix.arch }}
-          mv main_${{ env.VERSION }}_${{ matrix.arch }}.deb main_${{ env.VERSION }}_${{ matrix.arch }}.deb
       - name: Upload .deb to Release
         uses: softprops/action-gh-release@v2
         with:
