@@ -8,48 +8,55 @@ permissions:
   contents: write
 jobs:
   build-deb:
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     runs-on: ubuntu-latest
     steps:
       - name: Install Crystal
         uses: crystal-lang/install-crystal@v1
       - name: Checkout source code
         uses: actions/checkout@v4
-      - name: Install dependencies
-        run: shards install
-      - name: Build main Binary
-        run: |
-          crystal build src/main.cr --release -o main
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Get Version
         id: get_version
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Build main Binary
+        run: |
+          docker run --rm --platform linux/${{ matrix.arch }} -v $(pwd):/main -w /main --entrypoint="" 84codes/crystal:latest-debian-12 sh -c "
+            apt-get update && apt-get install -y libyaml-dev ca-certificates git curl &&
+            shards install --production &&
+            /usr/bin/crystal build src/main.cr -o main --release --no-debug --static
+          "
       - name: Create Debian Package Structure
         run: |
-          mkdir -p main_${{ env.VERSION }}_all/DEBIAN
-          mkdir -p main_${{ env.VERSION }}_all/usr/bin
-          mkdir -p main_${{ env.VERSION }}_all/usr/share/doc/main
-          cp main main_${{ env.VERSION }}_all/usr/bin/
-          cp README.md main_${{ env.VERSION }}_all/usr/share/doc/main/
-          cp LICENSE main_${{ env.VERSION }}_all/usr/share/doc/main/
+          mkdir -p main_${{ env.VERSION }}_${{ matrix.arch }}/DEBIAN
+          mkdir -p main_${{ env.VERSION }}_${{ matrix.arch }}/usr/bin
+          mkdir -p main_${{ env.VERSION }}_${{ matrix.arch }}/usr/share/doc/main
+          cp main main_${{ env.VERSION }}_${{ matrix.arch }}/usr/bin/
+          cp README.md main_${{ env.VERSION }}_${{ matrix.arch }}/usr/share/doc/main/
+          cp LICENSE main_${{ env.VERSION }}_${{ matrix.arch }}/usr/share/doc/main/
       - name: Create DEBIAN/control file
         run: |
-          cat > main_${{ env.VERSION }}_all/DEBIAN/control << EOF
+          cat > main_${{ env.VERSION }}_${{ matrix.arch }}/DEBIAN/control << EOF
           Package: main
           Version: ${{ env.VERSION }}
-          Architecture: all
+          Architecture: ${{ matrix.arch }}
           Maintainer: OWASP main Team <main@owasp.org>
           Description: Attack surface detector that identifies endpoints by static analysis
           Depends: libc6 (>= 2.17)
           EOF
       - name: Build .deb Package
         run: |
-          dpkg-deb --build main_${{ env.VERSION }}_all
-          mv main_${{ env.VERSION }}_all.deb main_${{ env.VERSION }}_all.deb
+          dpkg-deb --build main_${{ env.VERSION }}_${{ matrix.arch }}
+          mv main_${{ env.VERSION }}_${{ matrix.arch }}.deb main_${{ env.VERSION }}_${{ matrix.arch }}.deb
       - name: Upload .deb to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            main_${{ env.VERSION }}_all.deb
+            main_${{ env.VERSION }}_${{ matrix.arch }}.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
