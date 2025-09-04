@@ -1,0 +1,55 @@
+---
+name: Build and Release .deb Package
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Checkout source code
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: shards install
+      - name: Build main Binary
+        run: |
+          crystal build src/main.cr --release -o main
+      - name: Get Version
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Create Debian Package Structure
+        run: |
+          mkdir -p main_${{ env.VERSION }}_all/DEBIAN
+          mkdir -p main_${{ env.VERSION }}_all/usr/bin
+          mkdir -p main_${{ env.VERSION }}_all/usr/share/doc/main
+          cp main main_${{ env.VERSION }}_all/usr/bin/
+          cp README.md main_${{ env.VERSION }}_all/usr/share/doc/main/
+          cp LICENSE main_${{ env.VERSION }}_all/usr/share/doc/main/
+      - name: Create DEBIAN/control file
+        run: |
+          cat > main_${{ env.VERSION }}_all/DEBIAN/control << EOF
+          Package: main
+          Version: ${{ env.VERSION }}
+          Architecture: all
+          Maintainer: OWASP main Team <main@owasp.org>
+          Description: Attack surface detector that identifies endpoints by static analysis
+          Depends: libc6 (>= 2.17)
+          EOF
+      - name: Build .deb Package
+        run: |
+          dpkg-deb --build main_${{ env.VERSION }}_all
+          mv main_${{ env.VERSION }}_all.deb main_${{ env.VERSION }}_all.deb
+      - name: Upload .deb to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            main_${{ env.VERSION }}_all.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
