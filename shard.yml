@@ -1,0 +1,27 @@
+name: gh-test
+version: 0.1.0
+
+# Crystal version requirement
+crystal: ~> 1.10
+
+# Build Targets
+targets:
+  noir:
+    main: src/main.cr
+
+# authors:
+#   - name <email@example.com>
+
+# description: |
+#   Short description of gh-test
+
+# dependencies:
+#   pg:
+#     github: will/crystal-pg
+#     version: "~> 0.5"
+
+# development_dependencies:
+#   webmock:
+#     github: manastech/webmock.cr
+
+license: MIT
