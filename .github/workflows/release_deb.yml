@@ -45,7 +45,7 @@ jobs:
           Package: main
           Version: ${{ env.VERSION }}
           Architecture: ${{ matrix.arch }}
-          Maintainer: OWASP main Team <main@owasp.org>
+          Maintainer: HAHWUL <hahwul@gmail.com>, KSG <ksg97031@gmail.com>
           Description: Attack surface detector that identifies endpoints by static analysis
           Depends: libc6 (>= 2.17)
           EOF
